@@ -1,11 +1,7 @@
 package app.saikat.AnnotationProcessors;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -26,28 +22,21 @@ import javax.lang.model.element.Modifier;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic.Kind;
 
 import com.squareup.javapoet.ClassName;
-import com.squareup.javapoet.FieldSpec;
 import com.squareup.javapoet.JavaFile;
 import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.ParameterizedTypeName;
-import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
-import com.squareup.javapoet.TypeVariableName;
 import com.squareup.javapoet.WildcardTypeName;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import app.saikat.Annotations.WaspberryMessageHandler;
+import app.saikat.UrlManagement.CommonObjects.WebsocketMessageHandlers;
 
 @SupportedAnnotationTypes("app.saikat.Annotations.WaspberryMessageHandler")
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
 public class WaspberryMessageHandlerProcessor extends AbstractProcessor {
-    private Logger logger = LoggerFactory.getLogger(this.getClass().getSimpleName());
 
     private Messager messager;
     private ProcessingEnvironment processingEnv;
@@ -69,13 +58,26 @@ public class WaspberryMessageHandlerProcessor extends AbstractProcessor {
         }
     }
 
+    private static boolean processed = false;
+
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
 
-        boolean hasElements = false;
+        if (processed || roundEnv.getElementsAnnotatedWith(WaspberryMessageHandler.class).isEmpty()) {
+            messager.printMessage(Kind.OTHER, "processed: " + processed);
+            return true;
+        }
+
         PackageElement packageElement;
         String packageName = null;
         ClassName className = null;
+        // processed = true;
+        // String pkg = processingEnv.getOptions().get("wsMessageHandlerLoc");
+        // String packageName = "app.saikat." + pkg;
+        // ClassName className = ClassName.bestGuess(packageName + "." +
+        // "WaspberryMessageHandlers");
+        // messager.printMessage(Kind.OTHER, "PackageName:- " + packageName);
+        // messager.printMessage(Kind.OTHER, "className:- " + className);
 
         Map<Element, List<Tuple<Element, String>>> listenerReferences = new HashMap<>();
 
@@ -88,26 +90,27 @@ public class WaspberryMessageHandlerProcessor extends AbstractProcessor {
             }
 
             ExecutableElement method = (ExecutableElement) element;
-            if (!method.getModifiers().containsAll(Arrays.asList(Modifier.PUBLIC, Modifier.STATIC))) {
-                messager.printMessage(Kind.ERROR, "Can be only applied to public static methods");
+            if (!method.getModifiers().contains(Modifier.PUBLIC)) {
+                messager.printMessage(Kind.ERROR, "Can be only applied to public methods");
                 return true;
             }
 
-            hasElements = true;
-
             Element elem = method;
-            while (! (elem instanceof PackageElement)) {
+            while (!(elem instanceof PackageElement)) {
                 elem = elem.getEnclosingElement();
             }
             packageElement = (PackageElement) elem;
             String pkgName = packageElement.getQualifiedName().toString();
             String[] parsedPackage = pkgName.split("\\.");
-            packageName = parsedPackage[0]+"."+parsedPackage[1]+"."+parsedPackage[2];
-            className = ClassName.bestGuess(packageName+"."+"WaspberryMessageHandlers");
+            packageName = parsedPackage[0] + "." + parsedPackage[1] + "." + parsedPackage[2];
+            className = ClassName.bestGuess(packageName + "." + "WaspberryMessageHandlers");
             messager.printMessage(Kind.OTHER, "PackageName:- " + packageName);
             messager.printMessage(Kind.OTHER, "className:- " + className);
 
             WaspberryMessageHandler messageHandler = element.getAnnotation(WaspberryMessageHandler.class);
+            if (messageHandler == null) {
+                continue;
+            }
 
             List<? extends VariableElement> requestElements = method.getParameters();
             VariableElement messageElement;
@@ -123,147 +126,84 @@ public class WaspberryMessageHandlerProcessor extends AbstractProcessor {
 
             listenerReferences.compute(messageElement, (key, val) -> {
                 List<Tuple<Element, String>> list;
-                if(val == null) {
+                if (val == null) {
                     list = new ArrayList<>();
                 } else {
                     list = val;
                 }
 
-                Tuple<Element, String> tuple = new Tuple<Element, String>(element.getEnclosingElement(), method.getSimpleName().toString());
+                Tuple<Element, String> tuple = new Tuple<Element, String>(element.getEnclosingElement(),
+                        method.getSimpleName().toString());
                 list.add(tuple);
-                messager.printMessage(Kind.OTHER, "Inserted:- " + messageElement.getSimpleName().toString() +
-                    ": ("+element.getEnclosingElement().getSimpleName().toString()+", "+
-                    method.getSimpleName().toString()+")");
+                messager.printMessage(Kind.OTHER,
+                        "Inserted:- " + messageElement.asType() + ": ("
+                                + element.getEnclosingElement().getSimpleName().toString() + ", "
+                                + method.getSimpleName().toString() + ")");
                 return list;
             });
 
         }
 
-        if (hasElements) {
-
-            TypeVariableName first = TypeVariableName.get("X");  // <X>
-            TypeVariableName second = TypeVariableName.get("Y"); // <Y>
-            
-            // Class<?>
-            ParameterizedTypeName classWithWildcard = ParameterizedTypeName.get(ClassName.get(Class.class),
+        // Class<?>
+        ParameterizedTypeName classWithWildcard = ParameterizedTypeName.get(ClassName.get(Class.class),
                 WildcardTypeName.subtypeOf(Object.class));
-            
-            ClassName tupleClassName = ClassName.get("", className.simpleName(), "Tuple");
-            // Tuple<X, Y>
-            ParameterizedTypeName tuplePair = ParameterizedTypeName.get(tupleClassName, first, second);
-            
-            // Tuple<Class<?>, String>
-            ParameterizedTypeName objectMethodPair = ParameterizedTypeName.get(tupleClassName, classWithWildcard, ClassName.get(String.class));
+        // WebsocketMessageHandlers.Tuple
+        ClassName tupleClassName = ClassName.get(WebsocketMessageHandlers.Tuple.class);
 
-            // List<Tuple<Class<?>, String>
-            ParameterizedTypeName listOfObjectMethodPairs = ParameterizedTypeName.get(ClassName.get(List.class), objectMethodPair);
+        // WebsocketMessageHandlers.Tuple<Class<?>, String>
+        ParameterizedTypeName objectMethodPair = ParameterizedTypeName.get(tupleClassName, classWithWildcard,
+                ClassName.get(String.class));
 
-            // Map<Class<?>, List<Tuple<Class<?>, String>>>
-            ParameterizedTypeName mapElement = ParameterizedTypeName.get(ClassName.get(Map.class), classWithWildcard, listOfObjectMethodPairs);
+        // List<WebsocketMessageHandlers.Tuple<Class<?>, String>>
+        ParameterizedTypeName listOfObjectMethodPairs = ParameterizedTypeName.get(ClassName.get(List.class),
+                objectMethodPair);
 
-            /**
-             * public static class Tuple<X, Y> {
-             *     public X first;
-             *     public Y second;
-             * 
-             *     public Tuple(X first, Y second) {
-             *         this.first = first;
-             *         this.second = second;
-             *     }
-             * }
-             */
-            TypeSpec tupleClass = TypeSpec.classBuilder("Tuple")   
-                .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
-                .addTypeVariables(Arrays.asList(first, second))
-                .addField(first, "first", Modifier.PUBLIC)
-                .addField(second, "second", Modifier.PUBLIC)
-                .addMethod(MethodSpec.constructorBuilder()
-                    .addParameter(first, "first")
-                    .addParameter(second, "second")
-                    .addStatement("this.first = first")
-                    .addStatement("this.second = second")
-                    .build()
-                )
-                .build();
-                    
-            
-            /**
-             * public class WaspberryMessaheHandlers {
-             *     public static class Tuple<X, Y> {
-             *         public X first;
-             *         public Y second;
-             * 
-             *         public Tuple(X first, Y second) {
-             *             this.first = first;
-             *             this.second = second;
-             *         }
-             *     }
-             *     private Map<Class<?>, List<Tuple<Class<?>, String>>> messageHandlers;
-             * }
-            */ 
-            TypeSpec.Builder classBuilder = TypeSpec.classBuilder("WaspberryMessageHandlers")
-                .addModifiers(Modifier.PUBLIC)
-                .addType(tupleClass)
-                .addField(mapElement, "messageHandlers", Modifier.PRIVATE);
+        /**
+         * public class WaspberryMessaheHandlers extends WebsocketMessageHandlers { }
+         */
+        TypeSpec.Builder classBuilder = TypeSpec.classBuilder("WaspberryMessageHandlers").addModifiers(Modifier.PUBLIC)
+                .superclass(WebsocketMessageHandlers.class);
 
-            /**
-             * public WaspberryMessageHandlers() {
-             *     this.messageHandlers = new HaspMap<>();
-             *     
-             *     List<Tuple<Class<?>, String>> list_m1 = new ArrayList<>();
-             *     list_m1.add(new Tuple(A.class, "abc"));
-             *     list_m1.add(new Tuple(B.class, "abc"));
-             * 
-             *     this.messageHandlers.put(M1.class, list_m1);
-             * 
-             *     List<Tuple<Class<?>, String>> list_m2 = new ArrayList<>();
-             *     list_m2.add(new Tuple(C.class, "abc"));
-             *     list_m2.add(new Tuple(D.class, "abc"));
-             *     this.messageHandlers.put(M2.class, list_m2);
-             * 
-             *     this.messageHandlers = Collections.unmodifiableMap(this.messageHandlers);
-             * }
-             */
-            MethodSpec.Builder classConstructorBuilder = MethodSpec.constructorBuilder()
-                .addModifiers(Modifier.PUBLIC)
-                .addStatement("this.messageHandlers = new $T<>()", HashMap.class);
-            
-            for (Map.Entry<Element, List<Tuple<Element, String>>> entry : listenerReferences.entrySet()) {
-                String listName = "list_"+entry.getKey().getSimpleName().toString().toLowerCase();
-                classConstructorBuilder.addStatement("$T $L = new $T<>()", listOfObjectMethodPairs, listName, ArrayList.class);
-                for (Tuple<Element, String> tuple : entry.getValue()) {
-                    classConstructorBuilder.addStatement("$L.add(new $L($T.class, \"$L\"))", listName, tupleClassName.simpleName(), tuple.first, tuple.second);
-                }
-                classConstructorBuilder.addStatement("this.messageHandlers.put($T.class, $N)", entry.getKey(), listName);
+        /**
+         * public WaspberryMessageHandlers() { 
+         *     this.messageHandlers = new HaspMap<>();
+         * 
+         *     List<Tuple<Class<?>, String>> list_m1 = new ArrayList<>();
+         *     list_m1.add(new WebsocketMessageHandlers.Tuple<Class<?>, String>(A.class, "abc"));
+         *     list_m1.add(new Tuple(B.class, "abc"));
+         * 
+         *     this.messageHandlers.put(M1.class, list_m1);
+         * 
+         *     List<Tuple<Class<?>, String>> list_m2 = new ArrayList<>();
+         *     list_m2.add(new WebsocketMessageHandlers.Tuple<Class<?>, String>(B.class, "test"));
+         *     this.messageHandlers.put(M2.class, list_m2);
+         * 
+         *     this.messageHandlers = Collections.unmodifiableMap(this.messageHandlers);
+         * }
+         */
+        MethodSpec.Builder classConstructorBuilder = MethodSpec.constructorBuilder().addModifiers(Modifier.PUBLIC);
+
+        for (Map.Entry<Element, List<Tuple<Element, String>>> entry : listenerReferences.entrySet()) {
+            String listName = "list_" + entry.getKey().getSimpleName().toString().toLowerCase();
+            classConstructorBuilder.addStatement("$T $L = new $T<>()", listOfObjectMethodPairs, listName,
+                    ArrayList.class);
+            for (Tuple<Element, String> tuple : entry.getValue()) {
+                classConstructorBuilder.addStatement("$L.add(new $T($T.class, \"$L\"))", listName, objectMethodPair,
+                        tuple.first, tuple.second);
             }
+            classConstructorBuilder.addStatement("this.handlers.put($T.class, $N)", entry.getKey(), listName);
+        }
 
-            classConstructorBuilder.addStatement("this.messageHandlers = $T.unmodifiableMap(this.messageHandlers)", Collections.class);
+        classConstructorBuilder.addStatement("this.handlers = $T.unmodifiableMap(this.handlers)", Collections.class);
 
-            classBuilder.addMethod(classConstructorBuilder.build());
+        classBuilder.addMethod(classConstructorBuilder.build());
 
-            /**
-             * public Map<Class<?>, List<WaspberryMessageHandlers.Tuple<Class<?>, String>>> getHandlers() {
-             *     return this.messageHandlers;
-             * }
-             */
-            MethodSpec mapGetter = MethodSpec.methodBuilder("getHandlers")
-                .addModifiers(Modifier.PUBLIC)
-                .returns(mapElement)
-                .addStatement("return this.messageHandlers", Collections.class)
-                .build();
-
-            classBuilder.addMethod(mapGetter);
-
-            try {
-                JavaFile.builder(packageName, classBuilder.build())
-                    .skipJavaLangImports(true)
-                    .indent("\t")
-                    .build()
+        try {
+            JavaFile.builder(packageName, classBuilder.build()).skipJavaLangImports(true).indent("    ").build()
                     .writeTo(processingEnv.getFiler());
 
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+        } catch (IOException e) {
+            e.printStackTrace();
         }
 
         return true;

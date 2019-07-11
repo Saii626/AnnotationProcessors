@@ -2,7 +2,6 @@ package app.saikat.AnnotationProcessors;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.List;
 import java.util.Set;
 
 import javax.annotation.processing.AbstractProcessor;
@@ -17,12 +16,9 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
-import javax.lang.model.type.MirroredTypeException;
 import javax.lang.model.type.TypeMirror;
-import javax.lang.model.type.WildcardType;
 import javax.tools.Diagnostic.Kind;
 
 import com.squareup.javapoet.ClassName;
@@ -32,16 +28,11 @@ import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeSpec;
 import com.squareup.javapoet.WildcardTypeName;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import app.saikat.Annotations.ExportUrl;
 
 @SupportedAnnotationTypes("app.saikat.Annotations.ExportUrl")
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
 public class ExportUrlProcessor extends AbstractProcessor {
-
-    private Logger logger = LoggerFactory.getLogger(this.getClass().getSimpleName());
 
     private Messager messager;
 
