@@ -32,6 +32,7 @@ import com.squareup.javapoet.TypeSpec;
 import com.squareup.javapoet.WildcardTypeName;
 
 import app.saikat.Annotations.WaspberryMessageHandler;
+import app.saikat.UrlManagement.CommonObjects.Tuple;
 import app.saikat.UrlManagement.CommonObjects.WebsocketMessageHandlers;
 
 @SupportedAnnotationTypes("app.saikat.Annotations.WaspberryMessageHandler")
@@ -46,16 +47,6 @@ public class WaspberryMessageHandlerProcessor extends AbstractProcessor {
         super.init(processingEnv);
         messager = processingEnv.getMessager();
         this.processingEnv = processingEnv;
-    }
-
-    public static class Tuple<X, Y> {
-        public X first;
-        public Y second;
-
-        public Tuple(X x, Y y) {
-            first = x;
-            second = y;
-        }
     }
 
     private static boolean processed = false;
@@ -147,14 +138,14 @@ public class WaspberryMessageHandlerProcessor extends AbstractProcessor {
         // Class<?>
         ParameterizedTypeName classWithWildcard = ParameterizedTypeName.get(ClassName.get(Class.class),
                 WildcardTypeName.subtypeOf(Object.class));
-        // WebsocketMessageHandlers.Tuple
-        ClassName tupleClassName = ClassName.get(WebsocketMessageHandlers.Tuple.class);
+        // Tuple
+        ClassName tupleClassName = ClassName.get(Tuple.class);
 
-        // WebsocketMessageHandlers.Tuple<Class<?>, String>
+        // Tuple<Class<?>, String>
         ParameterizedTypeName objectMethodPair = ParameterizedTypeName.get(tupleClassName, classWithWildcard,
                 ClassName.get(String.class));
 
-        // List<WebsocketMessageHandlers.Tuple<Class<?>, String>>
+        // List<Tuple<Class<?>, String>>
         ParameterizedTypeName listOfObjectMethodPairs = ParameterizedTypeName.get(ClassName.get(List.class),
                 objectMethodPair);
 
@@ -169,13 +160,13 @@ public class WaspberryMessageHandlerProcessor extends AbstractProcessor {
          *     this.messageHandlers = new HaspMap<>();
          * 
          *     List<Tuple<Class<?>, String>> list_m1 = new ArrayList<>();
-         *     list_m1.add(new WebsocketMessageHandlers.Tuple<Class<?>, String>(A.class, "abc"));
+         *     list_m1.add(new Tuple<Class<?>, String>(A.class, "abc"));
          *     list_m1.add(new Tuple(B.class, "abc"));
          * 
          *     this.messageHandlers.put(M1.class, list_m1);
          * 
          *     List<Tuple<Class<?>, String>> list_m2 = new ArrayList<>();
-         *     list_m2.add(new WebsocketMessageHandlers.Tuple<Class<?>, String>(B.class, "test"));
+         *     list_m2.add(new Tuple<Class<?>, String>(B.class, "test"));
          *     this.messageHandlers.put(M2.class, list_m2);
          * 
          *     this.messageHandlers = Collections.unmodifiableMap(this.messageHandlers);
@@ -192,6 +183,7 @@ public class WaspberryMessageHandlerProcessor extends AbstractProcessor {
                         tuple.first, tuple.second);
             }
             classConstructorBuilder.addStatement("this.handlers.put($T.class, $N)", entry.getKey(), listName);
+            classConstructorBuilder.addCode("\n");
         }
 
         classConstructorBuilder.addStatement("this.handlers = $T.unmodifiableMap(this.handlers)", Collections.class);
