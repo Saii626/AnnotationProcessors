@@ -6,8 +6,8 @@
  * Detailed information about configuring a multi-project build in Gradle can be found
  * in the user manual at https://docs.gradle.org/5.4.1/userguide/multi_project_builds.html
  */
-include ':Annotations', ':UrlManagement'
+include ':Annotations', ':PojoCollections'
 project(':Annotations').projectDir = file('../Annotations')
-project(':UrlManagement').projectDir = file('../UrlManagement')
+project(':PojoCollections').projectDir = file('../PojoCollections')
 
 rootProject.name = 'AnnotationProcessors'

@@ -109,8 +109,8 @@ public class ExportUrlProcessor extends AbstractProcessor {
             try {
                 String projectDir = System.getenv("PROJECT_DIR");
 
-                JavaFile.builder("app.saikat.UrlManagement", enumBuilder.build()).skipJavaLangImports(true).build()
-                        .writeTo(new File(projectDir + "/UrlManagement/src/main/java"));
+                JavaFile.builder("app.saikat.PojoCollections", enumBuilder.build()).skipJavaLangImports(true).build()
+                        .writeTo(new File(projectDir + "/PojoCollections/src/main/java"));
 
             } catch (IOException e) {
                 e.printStackTrace();

@@ -32,8 +32,8 @@ import com.squareup.javapoet.TypeSpec;
 import com.squareup.javapoet.WildcardTypeName;
 
 import app.saikat.Annotations.WaspberryMessageHandler;
-import app.saikat.UrlManagement.CommonObjects.Tuple;
-import app.saikat.UrlManagement.CommonObjects.WebsocketMessageHandlers;
+import app.saikat.PojoCollections.CommonObjects.Tuple;
+import app.saikat.PojoCollections.CommonObjects.WebsocketMessageHandlers;
 
 @SupportedAnnotationTypes("app.saikat.Annotations.WaspberryMessageHandler")
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
